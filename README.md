@@ -27,7 +27,7 @@ Example Playbook
     - hosts:
         - icinga2
       roles:
-        - icinga2-add-hot
+        - icinga2-add-host
 
 License
 -------
