@@ -2,7 +2,7 @@
 # vars file for ansible-icinga2-client
 
 icinga2_server: "" # Icinga2 Master FQDN
-icinga2_server_ip: "" # $PRIVATE_IP for LAN, $PUBLIC_IP for outside connections
-icinga2_api_user: "" # Api username listed in master's /etc/icinga2/conf.d/api-users.conf , Must have have 'actions/generate-ticket'
-icinga2_api_pass: "" # Api password listed in master's /etc/icinga2/conf.d/api-users.conf , Must have have 'actions/generate-ticket'
+icinga2_server_ip: "" 
+icinga2_api_user: "" # Api username listed in master's /etc/icinga2/conf.d/api-users.conf , Must have 'actions/generate-ticket' permission
+icinga2_api_pass: "" # Api password listed in master's /etc/icinga2/conf.d/api-users.conf , Must have 'actions/generate-ticket' permission
 icinga2_topdown: "" # Set to 1 if using top-down configuration
