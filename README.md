@@ -1,5 +1,4 @@
 # icinga2-ansible
-=======================
 
 Installs Icinga2 on clients and adds host to master config.
 
