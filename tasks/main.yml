@@ -25,7 +25,7 @@
     - libicinga2
     - monitoring-plugins
 
-- name: Ensure /etc/icinga2/pki directory exists
+- name: Ensure Icinga2 certificate directory exists (v2.8.1)
   file:
     path: /var/lib/icinga2/certs
     state: directory
