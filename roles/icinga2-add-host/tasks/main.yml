@@ -1,0 +1,96 @@
+---
+# tasks file for ansible-icinga2-client
+
+- name: Add Icinga2 apt key
+  apt_key:
+    url: https://packages.icinga.com/icinga.key
+    state: present
+
+- name: Add icinga2 repository
+  apt_repository:
+    repo: deb https://packages.icinga.com/ubuntu icinga-xenial main
+    state: present
+    filename: 'icinga.list'
+
+- name: Install Icinga2 packages
+  apt:
+    name: '{{ item }}'
+    state: present
+    update_cache: yes
+  with_items:
+    - icinga2
+    - icinga2-bin
+    - icinga2-common
+    - icinga2-doc
+    - libicinga2
+    - monitoring-plugins
+
+- name: Ensure /etc/icinga2/pki directory exists
+  file:
+    path: /var/lib/icinga2/certs
+    state: directory
+    owner: nagios
+    group: nagios
+    mode: '0700'
+
+- name: Set client hostname as variable for future use on master host.
+  shell: >
+    hostname -f
+  register: icinga2_client_fqdn
+
+- name: Generate a new local self-signed certificate.
+  shell: >
+    icinga2 pki new-cert --cn {{ ansible_fqdn }} \
+    --key /var/lib/icinga2/certs/{{ ansible_fqdn }}.key \
+    --cert /var/lib/icinga2/certs/{{ ansible_fqdn }}.crt \
+  args:
+    creates: /var/lib/icinga2/certs/{{ ansible_fqdn }}.key
+
+- name: Request the master certificate from the master host and store it as trusted-master.crt.
+  shell: >
+    icinga2 pki save-cert --key /var/lib/icinga2/certs/{{ ansible_fqdn }}.key \
+    --cert /var/lib/icinga2/certs/{{ ansible_fqdn }}.crt \
+    --trustedcert /var/lib/icinga2/certs/trusted-master.crt \
+    --host {{ icinga2_server }}
+  args:
+    creates: /var/lib/icinga2/certs/trusted-master.crt
+
+- name: Generate ticket on local ansible machine to comply with Icinga2 security best practices
+  local_action:
+    shell: >
+      curl -k -s -u {{ icinga2_api_user }}:{{ icinga2_api_pass }} -H 'Accept: application/json' \
+      -X POST 'https://{{ icinga2_server_ip }}:5665/v1/actions/generate-ticket' -d '{ "cn": "{{ icinga2_client_fqdn }}" }' | awk -F ' ' '{ print $4 }' | sed s/"'"/""/g
+    register: icinga2_client_ticket
+    changed_when: false
+    delegate_to: 127.0.0.1
+
+- name: Check if node setup 
+  shell: grep {{ ansible_fqdn }} /etc/icinga2/constants.conf
+  register: node_setup
+  changed_when: false
+  ignore_errors: true
+
+- name: Continue with the additional node setup steps.
+  shell: >
+    icinga2 node setup --ticket {{ icinga2_client_ticket }} \
+    --cn {{ ansible_fqdn }} \
+    --endpoint {{ icinga2_server }},{{ icinga2_server_ip }},5665 \
+    --zone {{ ansible_fqdn }} \
+    --master_host {{ icinga2_server }} \
+    --trustedcert /var/lib/icinga2/certs/trusted-master.crt \
+    --accept-commands --accept-config
+  when: node_setup.rc != 0
+
+- name: Disable "conf.d" inclusion if this is a top down configured client.
+  lineinefile:
+    path: /etc/icinga2/icinga2.conf
+    regexp: '^include_recursive'
+    line: '#include_recursive'
+  when: icinga2_topdown == "1"
+  
+- name: restart icinga2
+  systemd:
+   name: icinga2
+   state: restarted
+  when: node_setup.rc != 0
+
