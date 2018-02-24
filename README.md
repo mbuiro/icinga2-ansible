@@ -6,9 +6,9 @@ Installs Icinga2 on clients and adds host to master config.
 Requirements
 ------------
 
-Ansible v2.0+
-Python
-Icinga2
+- Ansible v2.0+
+- Python
+- Icinga2
 
 Role Variables
 --------------
